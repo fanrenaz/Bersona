@@ -1,5 +1,5 @@
 import unittest
-from datetime import date
+from datetime import date, time
 from bersona.kernels.bazi_kernel import BaziKernel
 
 
@@ -18,6 +18,21 @@ class TestBaziKernel(unittest.TestCase):
             with self.subTest(date=dt, expected=expected_master):
                 result = self.kernel.calculate(dt)
                 self.assertEqual(result, {"day_master": expected_master})
+
+    def test_high_fidelity_mode(self):
+        # Test with a known Bazi chart
+                # Mao Zedong: Dec 26, 1893, ~8:00 AM (Chen hour)
+        birth_date = date(1893, 12, 26)
+        birth_time = time(8, 0) # Chen hour
+        
+        result = self.kernel.calculate(birth_date, birth_time=birth_time)
+        
+        # Correct Bazi for Mao Zedong is: 癸巳 甲子 丁酉 甲辰
+        self.assertEqual(result['day_master'], '丁火')
+        self.assertEqual(result['four_pillars']['year'], '癸巳')
+        self.assertEqual(result['four_pillars']['month'], '甲子')
+        self.assertEqual(result['four_pillars']['day'], '丁酉')
+        self.assertEqual(result['four_pillars']['hour'], '甲辰')
 
 
 if __name__ == '__main__':

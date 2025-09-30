@@ -21,7 +21,10 @@ classifiers = [
     "Intended Audience :: Developers",
 ]
 dependencies = [
-    "sxtwl>=2.0.7"
+    "sxtwl>=2.0.7",
+    "pyswisseph>=2.10.3",
+    "timezonefinder>=6.2.0",
+    "pytz>=2023.3"
 ]
 
 [project.urls]

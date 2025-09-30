@@ -9,12 +9,13 @@ class BaseKernel(ABC):
     """
 
     @abstractmethod
-    def calculate(self, birth_date: date, **kwargs) -> dict:
+    def calculate(self, birth_date: date, birth_time: "time | None" = None, location: "tuple[float, float] | None" = None) -> dict:
         """
         Calculates the persona traits based on the provided birth date and other optional parameters.
 
         :param birth_date: The birth date of the user.
-        :param kwargs: Additional optional parameters (e.g., birth_time, location).
+        :param birth_time: The birth time of the user.
+        :param location: The birth location (latitude, longitude) of the user.
         :return: A dictionary containing the calculated traits.
         """
         pass

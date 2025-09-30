@@ -1,5 +1,5 @@
 import unittest
-from datetime import date
+from datetime import date, time
 from bersona.kernels.astrology_kernel import AstrologyKernel
 
 
@@ -40,6 +40,22 @@ class TestAstrologyKernel(unittest.TestCase):
     def test_leap_year(self):
         # February 29th in a leap year
         self.assertEqual(self.kernel.calculate(date(2024, 2, 29))['sun_sign'], "Pisces")
+
+    def test_high_fidelity_mode(self):
+        # Test with a known chart: Albert Einstein
+        # March 14, 1879, 11:30 AM, Ulm, Germany (lat 48.4, lon 9.98)
+        birth_date = date(1879, 3, 14)
+        birth_time = time(11, 30)
+        location = (48.4, 9.98)
+
+        result = self.kernel.calculate(birth_date, birth_time, location)
+
+        self.assertEqual(result['sun_sign'], 'Pisces')
+        self.assertEqual(result['moon_sign'], 'Sagittarius')
+        self.assertEqual(result['ascendant_sign'], 'Cancer')
+        self.assertEqual(result['planets']['Mercury'], 'Aries')
+        self.assertEqual(result['planets']['Venus'], 'Aries')
+        self.assertEqual(result['planets']['Mars'], 'Capricorn')
 
 
 if __name__ == '__main__':
