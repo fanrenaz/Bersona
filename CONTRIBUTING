@@ -1,0 +1,127 @@
+# 欢迎为 Bersona 做出贡献！
+
+非常感谢你对 Bersona 项目的兴趣和热情！Bersona 是一个旨在连接古老智慧与现代 AI 的开源项目，我们相信，社区的力量是推动它成长的核心动力。
+
+你的每一次贡献，无论大小，都在为这个项目注入生命力。我们欢迎并感谢所有形式的贡献。
+
+在参与之前，请花几分钟阅读以下指南。
+
+## 行为准则 (Code of Conduct)
+
+为了营造一个开放、友好、互相尊重的社区环境，我们希望所有参与者都能遵守我们的 [行为准则](CODE_OF_CONDUCT.md)。请确保你在互动中保持善意和专业。
+
+## 如何做出贡献？
+
+我们欢迎各种形式的贡献，即使你不是程序员，也可以为项目提供巨大的价值。
+
+### 提交 Issue
+这是最简单的贡献方式之一！如果你发现：
+*   **Bug**: 程序运行出错、计算结果不符合预期等。
+*   **功能建议**: 想到一个很酷的新功能。
+*   **文档问题**: 文档中有错别字、描述不清晰或有待改进的地方。
+
+请通过 [GitHub Issues](https://github.com/YOUR_USERNAME/bersona/issues) 告诉我们。提交时，请尽量使用我们提供的模板，并提供足够详细的信息。
+
+### 作为开发者贡献代码
+
+#### 1. 寻找任务
+你可以从 [标记为 `good first issue` 的问题](https://github.com/YOUR_USERNAME/bersona/labels/good%20first%20issue) 开始，这些任务非常适合初次贡献者。当然，你也随时可以挑战其他任何感兴趣的问题。
+
+#### 2. 技术栈方向
+你可以根据自己的兴趣和专长，在以下几个方向发力：
+*   **计算内核 (Calculation Engine)**: 优化现有内核（占星/八字）的性能和准确性，或为项目添加新的计算内核（如紫微斗数、人类图等）。
+*   **特征结构化层 (Feature Structuring Layer)**: 这是 Bersona 的核心！帮助我们将玄学概念转化为对 LLM 更友好、更富有意义的结构化数据。
+*   **LLM 生成层 (LLM Generation Layer)**: 优化 Prompt 模板，试验不同的 LLM 以获得更好的输出效果，或者研究模型微调。
+*   **测试与基础架构**: 编写单元测试、集成测试，改善项目的 CI/CD 流程。
+
+### 作为领域专家贡献智慧（非编码）
+如果你是**占星师、八字研究者、人类图分析师**或任何相关领域的专家，你的知识对 Bersona 至关重要！你可以通过以下方式贡献：
+*   **验证数据**: 帮助我们验证计算内核的准确性。
+*   **优化逻辑**: 在“特征结构化层”的设计上提供专业建议，帮助我们更深刻地理解符号背后的意义。
+*   **评估输出**: 审阅 Bersona 生成的用户画像，评估其洞察的深度和准确性，并提出改进建议。
+*   **参与讨论**: 在相关的 GitHub Issues 或 Discord 频道中，分享你的专业见解。
+
+## 开发环境设置
+
+1.  **Fork 项目**
+    点击项目主页右上角的 "Fork" 按钮，将项目复刻到你自己的 GitHub 账户下。
+
+2.  **Clone 到本地**
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/bersona.git
+    cd bersona
+    ```
+
+3.  **创建虚拟环境**
+    我们强烈建议使用虚拟环境来管理依赖。
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # 在 Windows 上使用 `venv\Scripts\activate`
+    ```
+
+4.  **安装依赖**
+    安装项目运行和开发所需的全部依赖。
+    ```bash
+    pip install -r requirements.txt
+    pip install -r requirements-dev.txt
+    ```
+
+5.  **设置环境变量**
+    复制 `.env.example` 文件并重命名为 `.env`，然后填入你的 API 密钥。
+    ```bash
+    cp .env.example .env
+    # 然后编辑 .env 文件
+    ```
+
+现在，你已经准备好开始编码了！
+
+## 贡献流程
+
+1.  **创建新分支**
+    从 `main` 分支创建一个新的特性分支。请遵循良好的分支命名规范，例如：
+    ```bash
+    git checkout -b feat/add-human-design-kernel
+    # 或者
+    git checkout -b fix/bazi-calculation-error
+    ```
+
+2.  **编写代码与测试**
+    进行你的修改。如果你添加了新功能，请务必为其编写相应的单元测试。
+
+3.  **格式化与检查**
+    在提交之前，请确保你的代码符合项目规范。
+    ```bash
+    black .
+    flake8 .
+    ```
+
+4.  **提交你的修改**
+    我们推荐使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范来编写提交信息，这有助于我们自动化生成更新日志。
+    *   `feat`: 增加新功能
+    *   `fix`: 修复 Bug
+    *   `docs`: 修改文档
+    *   `style`: 代码格式化
+    *   `refactor`: 代码重构
+    *   `test`: 增加或修改测试
+    
+    ```bash
+    git commit -m "feat: Add baseline calculation for Human Design kernel"
+    ```
+
+5.  **推送至你的 Fork**
+    ```bash
+    git push origin feat/add-human-design-kernel
+    ```
+
+6.  **创建 Pull Request (PR)**
+    回到你的 GitHub 项目页面，点击 "Compare & pull request" 按钮。
+    在 PR 描述中，请清晰地说明：
+    *   **你做了什么？** (What does this PR do?)
+    *   **为什么需要这样做？** (Why is it needed?)
+    *   **如何测试？** (How to test it?)
+
+项目维护者会尽快审查你的 PR，并可能提出一些修改建议。一旦通过，你的贡献就会被合并到主项目中！
+
+---
+
+再次感谢你的时间和才华。让我们一起，为每一个数字身份，赋予一个有故事、有深度的灵魂！
