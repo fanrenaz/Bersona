@@ -10,6 +10,43 @@ GAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"]
 # 地支
 ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
 
+# Ten Gods mapping
+TEN_GODS_MAP = {
+    "比肩": "Friend",
+    "劫财": "Rob Wealth",
+    "食神": "Eating God",
+    "伤官": "Hurting Officer",
+    "偏财": "Indirect Wealth",
+    "正财": "Direct Wealth",
+    "七杀": "Seven Killings",
+    "正官": "Direct Officer",
+    "偏印": "Indirect Resource",
+    "正印": "Direct Resource",
+}
+
+# Heavenly Stem properties (Element, Yin/Yang)
+GAN_PROPERTIES = {
+    "甲": {"element": "木", "yin_yang": "yang"},
+    "乙": {"element": "木", "yin_yang": "yin"},
+    "丙": {"element": "火", "yin_yang": "yang"},
+    "丁": {"element": "火", "yin_yang": "yin"},
+    "戊": {"element": "土", "yin_yang": "yang"},
+    "己": {"element": "土", "yin_yang": "yin"},
+    "庚": {"element": "金", "yin_yang": "yang"},
+    "辛": {"element": "金", "yin_yang": "yin"},
+    "壬": {"element": "水", "yin_yang": "yang"},
+    "癸": {"element": "水", "yin_yang": "yin"},
+}
+
+# Five Elements relationships
+FIVE_ELEMENTS_REL = {
+    "木": {"produces": "火", "controls": "土"},
+    "火": {"produces": "土", "controls": "金"},
+    "土": {"produces": "金", "controls": "水"},
+    "金": {"produces": "水", "controls": "木"},
+    "水": {"produces": "木", "controls": "火"},
+}
+
 
 class BaziKernel(BaseKernel):
     """
@@ -43,6 +80,13 @@ class BaziKernel(BaseKernel):
 
             day_master = f"{day_gan}{self._get_element(day_gan)}"
 
+            # Calculate Ten Gods
+            ten_gods = {
+                "year": self._calculate_ten_gods(day_gan, year_gan),
+                "month": self._calculate_ten_gods(day_gan, month_gan),
+                "hour": self._calculate_ten_gods(day_gan, hour_gan),
+            }
+
             return {
                 "day_master": day_master,
                 "four_pillars": {
@@ -50,7 +94,8 @@ class BaziKernel(BaseKernel):
                     "month": f"{month_gan}{month_zhi}",
                     "day": f"{day_gan}{day_zhi}",
                     "hour": f"{hour_gan}{hour_zhi}",
-                }
+                },
+                "ten_gods": ten_gods
             }
 
         # --- Baseline Mode (Day Master only) ---
@@ -92,3 +137,37 @@ class BaziKernel(BaseKernel):
             "壬": "水", "癸": "水",
         }
         return element_map.get(gan, '')
+
+    def _calculate_ten_gods(self, day_master_gan: str, other_gan: str) -> str:
+        """
+        Calculates the Ten God relationship between the day master and another stem.
+        """
+        dm_props = GAN_PROPERTIES[day_master_gan]
+        other_props = GAN_PROPERTIES[other_gan]
+
+        dm_element = dm_props["element"]
+        other_element = other_props["element"]
+        
+        dm_yin_yang = dm_props["yin_yang"]
+        other_yin_yang = other_props["yin_yang"]
+
+        if dm_element == other_element:
+            return "比肩" if dm_yin_yang != other_yin_yang else "劫财"
+        
+        # Element that produces me (Mother)
+        if FIVE_ELEMENTS_REL[other_element]["produces"] == dm_element:
+            return "正印" if dm_yin_yang != other_yin_yang else "偏印"
+
+        # Element I produce (Child)
+        if FIVE_ELEMENTS_REL[dm_element]["produces"] == other_element:
+            return "伤官" if dm_yin_yang != other_yin_yang else "食神"
+
+        # Element I control (Wealth)
+        if FIVE_ELEMENTS_REL[dm_element]["controls"] == other_element:
+            return "正财" if dm_yin_yang != other_yin_yang else "偏财"
+
+        # Element that controls me (Power)
+        if FIVE_ELEMENTS_REL[other_element]["controls"] == dm_element:
+            return "正官" if dm_yin_yang != other_yin_yang else "七杀"
+        
+        return "" # Should not happen

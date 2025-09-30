@@ -34,6 +34,11 @@ class TestBaziKernel(unittest.TestCase):
         self.assertEqual(result['four_pillars']['day'], '丁酉')
         self.assertEqual(result['four_pillars']['hour'], '甲辰')
 
+        # Verify Ten Gods
+        self.assertEqual(result['ten_gods']['year'], '七杀')
+        self.assertEqual(result['ten_gods']['month'], '正印')
+        self.assertEqual(result['ten_gods']['hour'], '正印')
+
 
 if __name__ == '__main__':
     unittest.main()
