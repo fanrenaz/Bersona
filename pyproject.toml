@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bersona"
+version = "0.0.1"
+description = "Bersona 🧬 Generative user persona engine to solve the cold-start problem."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+authors = [
+  { name="fanrenaz", email="fanrenaz@users.noreply.github.com" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Intended Audience :: Developers",
+]
+dependencies = [
+    "sxtwl>=2.0.7"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/fanrenaz/Bersona"
+"Issues" = "https://github.com/fanrenaz/Bersona/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
