@@ -69,6 +69,89 @@ Bersona 的工作流基于一个由大型语言模型（LLM）驱动的两阶段
 
 > **我们的理念**：我们不声称100%的准确性。我们将这些古老体系视为提供了一种强大的 **“强效先验”（Informative Prior）** 。它们提供了一个**优于随机的起点**，能够显著加速个性化系统对用户真实偏好的收敛过程。
 
+## 🧩 结构化层 API（Structuring Layer）
+
+结构化层是两阶段流水线的第一跳：输入 “原始符号”(raw symbols)，输出严格受控、机器友好的 `StructuredPersonaFeatures`。这一步保证第二阶段生成层对输入的依赖是稳定且可版本化的。
+
+核心入口函数：`structure_features(raw_symbols: dict, *, model: str = "stub-1", use_cache: bool = True) -> StructuredPersonaFeatures`
+
+最小示例：
+
+```python
+from bersona.structuring.engine import structure_features
+from bersona.structuring.metrics import snapshot
+
+raw_symbols = {
+        "astrology_raw": {"sun_sign": "Virgo"},
+        "bazi_raw": {"day_master": "Geng Metal"},
+}
+
+persona = structure_features(raw_symbols)
+print(persona.model_dump_json(ensure_ascii=False, indent=2))
+
+print("Metrics snapshot:")
+print(snapshot())  # 包含 pipeline / cache / llm 聚合指标
+```
+
+主要字段（V1 Schema）：
+- `core_identity`: 核心自我/主题（短句）
+- `motivation`: 主要驱动力
+- `decision_style`: 决策偏好
+- `social_style`: 社交互动风格
+- `strength_traits`: 优势特质列表 (<=8)
+- `growth_opportunities`: 成长机会列表 (<=6)
+- `advanced`: 预留扩展字典（高保真符号映射）
+- `fallback`: 是否使用了降级/启发式路径
+- `incomplete_fields`: 本次输出中被填补默认值的字段名
+- `schema_version` / `generated_at`: 版本与时间戳
+
+容错与降级：
+1. LLM 调用异常 / 超时 → 直接启发式 fallback（基于太阳星座 / 日主的静态映射）。
+2. LLM 文本返回但 JSON 解析失败 → 正则截取首个 JSON 块；仍失败则 fallback。
+3. JSON 缺失字段 → 自动补默认值（`"unknown"` / `[]`），同时记录到 `incomplete_fields`。
+
+缓存：对输入 `raw_symbols` 进行稳定哈希（仅限已提供键）作为 key；默认仅缓存“非 fallback”结果，避免降级缓存污染；可通过 `use_cache=False` 禁用。
+
+指标 (metrics): 使用 `bersona.structuring.metrics.snapshot()` 获取：
+```jsonc
+{
+    "pipeline": {"calls": 3, "success": 3, "fallback": 1, ...},
+    "cache": {"size": 2, "hits": 5, "misses": 1, ...},
+    "llm": {"total_calls": 3, "models": {"stub-1": {"calls": 3}}},
+    "timestamp": 1730xxxx.xxx
+}
+```
+
+测试策略：通过 monkeypatch stub LLM 保证 deterministic；真实外部 API 冒烟测试可在 CI 中跳过（未来扩展）。
+
+未来扩展（规划中）：批量结构化接口、向量化投影、可配置多模型 fallback 链、本地轻量模型替换远程调用、输入脱敏 (`redact_inputs`)。
+
+### 批量接口 (Experimental)
+
+`structure_features_batch(list_of_raw_symbols, *, parallel=True, dedupe=True, model="stub-1") -> List[StructuredPersonaFeatures]`
+
+特性：
+1. 去重：`dedupe=True` 时相同符号集合仅计算一次（仍保持输出顺序）。
+2. 可选并行：`parallel=True` 使用线程池（I/O bound LLM 调用友好）。
+3. 失败隔离：单条异常自动 fallback，不影响其它条目。
+4. 复用缓存：内部仍使用单条 API 的缓存与指标统计。
+
+示例：
+```python
+from bersona.structuring.engine import structure_features_batch
+
+batch = [
+    {"astrology_raw": {"sun_sign": "Virgo"}},
+    {"astrology_raw": {"sun_sign": "Virgo"}},  # duplicate
+    {"astrology_raw": {"sun_sign": "Aries"}},
+]
+personae = structure_features_batch(batch, parallel=True)
+for p in personae:
+        print(p.core_identity, p.fallback)
+```
+
+当前状态：实验性（P2），接口可能随后续批量 Prompt 优化而调整。
+
 ## 🗺️ 路线图
 
 我们为 Bersona 制定了详细的发展路线图，从基础的 MVP 到未来的生态系统建设。我们欢迎所有感兴趣的开发者和爱好者加入我们，共同塑造个性化技术的未来。

@@ -26,10 +26,13 @@
 | **核心计算内核**                  |  ✅  | 实现了项目的计算基础。                                                                                                          |
 | `astrology_kernel` (仅日期模式)   |  ✅  | 实现了基于出生日期的太阳星座计算，这是占星学中最核心的单一特征。                                                                  |
 | `bazi_kernel` (仅日期模式)        |  ✅  | 实现了基于出生日期的“日主”（天干）计算，这是八字体系中代表个体核心特质的关键元素。                                                |
-| **LLM 驱动的特征提取**            |  🚧  | 实现两阶段 LLM 调用的核心逻辑。                                                                                                 |
-| 初始特征 Schema 设计              |  🚧  | 定义第一版结构化特征的 Pydantic Schema，用于规范第一次 LLM 调用的输出（如 `core_identity`, `motivation` 等）。                 |
-| LLM 结构化 Prompt                 |  🚧  | 设计第一个 prompt，指导 LLM 将原始符号（如“太阳天秤座”）“翻译”为结构化的 JSON 特征。                                               |
-| LLM 生成 Prompt                   |  🚧  | 设计第二个 prompt，指导 LLM 基于结构化 JSON 特征，生成流畅、可读的用户画像描述。                                                  |
+| **LLM 驱动的特征提取（Structuring Layer）** |  ✅  | 已完成第一阶段“结构化层”：Schema、Prompt、解析/容错、fallback、缓存、metrics、批量合并 Prompt、隐私脱敏。                    |
+| 初始特征 Schema 设计              |  ✅  | 已发布 V1（Pydantic），含核心字段 + 语义清洗 + 版本号。                                                                          |
+| LLM 结构化 Prompt                 |  ✅  | 结构化层单条与批量 Prompt 模板完成（支持 few-shot、严格 JSON 输出约束）。                                                        |
+| LLM 生成 Prompt                   |  🚧  | 第二阶段（Generation Layer）尚未实现：将结构化特征转写为自然语言长描述。                                                         |
+| 结构化层缓存 & Metrics            |  ✅  | 内存 LRU + TTL、命中率统计、LLM 调用次数/时延/降级数、pipeline snapshot。                                                        |
+| 批量接口（实验）                  |  ✅  | `structure_features_batch` 支持去重 / 合并单次 Prompt / 并行回退，降低 token 成本。                                               |
+| 隐私 & 脱敏                       |  ✅  | `redact_inputs` 默认开启，日志仅输出符号键集合，不暴露原始出生时间/地点。                                                         |
 | **Agent 工具集成**                |  🚧  | 将 Bersona 封装为 AI Agent 可直接调用的工具。                                                                                   |
 | 函数调用/工具封装                 |  🚧  | 将核心功能封装为符合主流 Agent 框架（如 OpenAI Function Calling, LangChain Tool）的工具，方便 Agent 直接调用。                  |
 | **打包与发布**                    |  🚧  | 使项目易于被开发者获取和使用。                                                                                                  |
@@ -51,8 +54,10 @@
 | 支持 `birthTime` 和 `location`    |  ✅  | 在 `Bersona` 主类中添加入参，并建立处理纬度/经度和时区转换的通用工具。                                                           |
 | `astrology_kernel` 高保真模式     |  ✅  | 实现上升星座、月亮星座以及十大行星所在星座和宫位的计算，这将提供远比太阳星座丰富的信息。                                            |
 | `bazi_kernel` 高保真模式          |  ✅  | 实现完整的八字四柱（年、月、日、时）排盘，并计算出“十神”，揭示更复杂的个人才能、挑战和关系动态。                                  |
-| **扩展特征 Schema**               |  🚧  | 扩展 Pydantic 模型，以容纳 L2 级别的新数据点，如 `{"ascendant_sign": "Leo", "dominant_element": "Fire"}`。                     |
-| **高级 Prompt 工程**              |  🚧  | 设计能够处理和整合 L1 和 L2 信息的复杂 prompt 链，确保 LLM 能够综合所有信息，生成更连贯、更深刻的画像。                          |
+| **扩展特征 Schema**               |  🚧  | 计划：将 ascendant_sign / moon_sign / ten_gods 等纳入 `advanced` 或扩展字段（当前基础层已兼容 advanced 透明透传）。               |
+| **高级 Prompt 工程**              |  🚧  | 待实现第二阶段生成 Prompt（自然语言画像），并引入多级上下文拼接与风格调控。                                                      |
+| 批量成本优化（Prompt 压缩）       |  🚧  | 已有批量单 Prompt 合并；后续加入 token 估算与分块阈值策略、跨批缓存预热。                                                        |
+| Token / 温度自适应策略            |  🚧  | 计划：大 token 告警、解析失败自动降温 (0.3→0.1)、未来加入退避与 fallback 链策略。                                                |
 | **健壮性与测试**                  |  ✅  |                                                                                                                                 |
 | 增加单元测试和集成测试            |  ✅  | 为所有新的计算逻辑编写全面的测试用例，确保在各种边缘情况下（如不同时区、夏令时）的准确性。                                        |
 | **Web Demo**                      |  🚧  | 构建一个基于 Streamlit 或 Gradio 的简单 Web 应用，让非开发者也能直观地体验 Bersona 的高保真画像生成功能。                         |
@@ -73,6 +78,8 @@
 | **模型微调 (Fine-tuning)**        |  -   |                                                                                                                                 |
 | 构建高质量数据集                  |  -   | 基于结构化的内核输出和高质量的画像描述，创建用于微调的数据集。                                                                    |
 | 微调专用模型 `Bersona-Chat-7B`    |  -   | 在 Llama、Mistral 或其他开源模型的基础上，微调一个专门用于生成用户画像的对话式小模型，以降低 API 成本并提高特定任务的性能。       |
+| 结构化层回放基准 (Replay Baseline)|  -   | 固定一组 canonical raw_symbols → structured_features 输出，监控 Prompt / 版本升级漂移。                                           |
+| 微调前数据管线基准化             |  -   | 对生成层输出做质量采样（覆盖多符号组合）并存档，为后续对比微调后表现提供基线。                                                   |
 | **开发者工具与集成**              |  -   |                                                                                                                                 |
 | REST API / Serverless 部署模板    |  -   | 提供将 Bersona 部署为独立服务的模板（如使用 FastAPI 和 Docker），方便企业级应用集成。                                             |
 | **社区与治理**                    |  -   |                                                                                                                                 |
