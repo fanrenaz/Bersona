@@ -14,7 +14,6 @@
 
 当前支持：
  - 占星太阳星座 sun_sign
- - 八字日主 day_master (英文格式: Jia Wood / Geng Metal ...) 
 
 扩展：未来可分离词库 JSON，并允许社区 PR 调整描述。
 """
@@ -126,88 +125,7 @@ SUN_SIGN_MAP: Dict[str, Dict[str, Any]] = {
 }
 
 
-DAY_MASTER_MAP: Dict[str, Dict[str, Any]] = {
-    "Jia Wood": {
-        "core_identity": "生长外拓与开端性",
-        "motivation": "推动结构成形",
-        "decision_style": "推进式",
-        "social_style": "直爽外向",
-        "strengths": ["生命力", "扩展", "正面"],
-        "growth": ["耐心打磨"],
-    },
-    "Yi Wood": {
-        "core_identity": "柔韧渗透与协调性",
-        "motivation": "通过适配获取进展",
-        "decision_style": "迂回协调",
-        "social_style": "礼貌含蓄",
-        "strengths": ["适应", "温柔", "润物"],
-        "growth": ["立场清晰"],
-    },
-    "Bing Fire": {
-        "core_identity": "显性热能与鼓舞性",
-        "motivation": "点燃氛围与影响他人",
-        "decision_style": "直接外放",
-        "social_style": "开放热情",
-        "strengths": ["热情", "点燃", "乐观"],
-        "growth": ["持续深耕"],
-    },
-    "Ding Fire": {
-        "core_identity": "内敛光源与温暖性",
-        "motivation": "提供稳定支持",
-        "decision_style": "稳态体察",
-        "social_style": "温和照拂",
-        "strengths": ["恒温", "培育", "细腻"],
-        "growth": ["自我表达"],
-    },
-    "Wu Earth": {
-        "core_identity": "厚载承压与中轴性",
-        "motivation": "建立稳定与承接",
-        "decision_style": "权衡沉着",
-        "social_style": "稳重务实",
-        "strengths": ["承载", "稳定", "包容"],
-        "growth": ["灵活响应"],
-    },
-    "Ji Earth": {
-        "core_identity": "滋养细致与巩固性",
-        "motivation": "维护秩序与细节品质",
-        "decision_style": "审慎分析",
-        "social_style": "含蓄支持",
-        "strengths": ["滋养", "细致", "守成"],
-        "growth": ["放宽要求"],
-    },
-    "Geng Metal": {
-        "core_identity": "刚毅开采与切割性",
-        "motivation": "解决顽固问题",
-        "decision_style": "果断直线",
-        "social_style": "直接坦率",
-        "strengths": ["执行", "抗压", "决断"],
-        "growth": ["柔性协作"],
-    },
-    "Xin Metal": {
-        "core_identity": "精致打磨与精确性",
-        "motivation": "提升质量与精细度",
-        "decision_style": "精衡细察",
-        "social_style": "讲究含蓄",
-        "strengths": ["审美", "精细", "甄别"],
-        "growth": ["避免过度挑剔"],
-    },
-    "Ren Water": {
-        "core_identity": "流动扩散与包容性",
-        "motivation": "连接资源与持续流动",
-        "decision_style": "弹性适配",
-        "social_style": "流动多向",
-        "strengths": ["灵活", "连接", "渗透"],
-        "growth": ["边界建立"],
-    },
-    "Gui Water": {
-        "core_identity": "隐性滋润与灵感性",
-        "motivation": "孕育想法与潜在价值",
-        "decision_style": "感性直觉",
-        "social_style": "温润内向",
-        "strengths": ["灵感", "润化", "细腻"],
-        "growth": ["落地执行"],
-    },
-}
+# 已移除八字日主映射（项目聚焦占星）。
 
 
 def build_fallback_persona(raw_symbols: dict) -> StructuredPersonaFeatures:
@@ -215,50 +133,39 @@ def build_fallback_persona(raw_symbols: dict) -> StructuredPersonaFeatures:
 
     优先级：
       1. astrology_raw.sun_sign
-      2. bazi_raw.day_master
-    若都不存在 -> 返回全部 unknown + 空列表。
+    若不存在 -> 返回全部 unknown + 空列表。
     """
     sun_sign = (
         (raw_symbols.get("astrology_raw") or {}).get("sun_sign")
         if isinstance(raw_symbols, dict)
         else None
     )
-    day_master = (
-        (raw_symbols.get("bazi_raw") or {}).get("day_master")
-        if isinstance(raw_symbols, dict)
-        else None
-    )
 
-    template: Dict[str, Any] | None = None
     if isinstance(sun_sign, str) and sun_sign in SUN_SIGN_MAP:
         template = SUN_SIGN_MAP[sun_sign]
-    elif isinstance(day_master, str) and day_master in DAY_MASTER_MAP:
-        template = DAY_MASTER_MAP[day_master]
-
-    if not template:
         return StructuredPersonaFeatures.create_minimal(
-            core_identity="初始概括缺失",
-            motivation="初始概括缺失",
-            decision_style="unknown",
-            social_style="unknown",
-            strengths=["适应"],
-            growth=["信息补充"],
+            core_identity=template["core_identity"],
+            motivation=template["motivation"],
+            decision_style=template["decision_style"],
+            social_style=template["social_style"],
+            strengths=template["strengths"][:2],
+            growth=template["growth"][:1],
             raw_symbols=raw_symbols,
-            incomplete_fields=["core_identity", "motivation"],
+            incomplete_fields=[],
             fallback=True,
         )
 
     return StructuredPersonaFeatures.create_minimal(
-        core_identity=template["core_identity"],
-        motivation=template["motivation"],
-        decision_style=template["decision_style"],
-        social_style=template["social_style"],
-        strengths=template["strengths"][:2],  # 最少 2 个（策略要求）
-        growth=template["growth"][:1],  # 最少 1 个
+        core_identity="初始概括缺失",
+        motivation="初始概括缺失",
+        decision_style="unknown",
+        social_style="unknown",
+        strengths=["适应"],
+        growth=["信息补充"],
         raw_symbols=raw_symbols,
-        incomplete_fields=[],
+        incomplete_fields=["core_identity", "motivation"],
         fallback=True,
     )
 
 
-__all__ = ["build_fallback_persona", "SUN_SIGN_MAP", "DAY_MASTER_MAP"]
+__all__ = ["build_fallback_persona", "SUN_SIGN_MAP"]

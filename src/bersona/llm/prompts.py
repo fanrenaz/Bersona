@@ -5,7 +5,7 @@
 设计原则：
 1. 显式角色指令：强调“符号学 → 现代心理/行为特征翻译专家”。
 2. 严格输出约束：必须返回单个 JSON，不添加解释性文字 / Markdown。
-3. Few-shot: 提供占星（太阳星座）与八字（日主）最小示例，引导字段风格与粒度。
+3. Few-shot: 仅提供占星（太阳星座）最小示例，引导字段风格与粒度。
 4. 语言：暂使用中文说明 + 输出字段中文语义但字段 key 为英文，方便后续国际化。
 5. 容错提示：若信息不足应合理概括，不得捏造不存在的符号。
 
@@ -56,18 +56,6 @@ OUTPUT_JSON={
 	"advanced": {}
 }
 
-示例2（八字 - 日主 庚金） =>
-INPUT_SYMBOLS={"bazi_raw": {"day_master": "Geng Metal"}}
-OUTPUT_JSON={
-	"core_identity": "坚韧果断的执行型人格",
-	"motivation": "通过掌控局面与解决冲突建立价值感",
-	"decision_style": "直接而务实",
-	"social_style": "坦率直截",
-	"strength_traits": ["执行力","抗压","果断"],
-	"growth_opportunities": ["避免过度强硬","提升协作耐心"],
-	"advanced": {}
-}
-
 【现在开始】请直接输出唯一 JSON：
 """
 )
@@ -92,7 +80,7 @@ BATCH_STRUCTURE_PROMPT_TEMPLATE = dedent(
 {raw_symbols_batch_json}
 
 示例（仅结构示意，不可复用内容）:
-INPUT=[{"astrology_raw": {"sun_sign": "Virgo"}}, {"bazi_raw": {"day_master": "Geng Metal"}}]
+INPUT=[{"astrology_raw": {"sun_sign": "Virgo"}}, {"astrology_raw": {"sun_sign": "Aries"}}]
 OUTPUT=[
 	{
 		"core_identity": "细致分析与改进导向",
@@ -104,12 +92,12 @@ OUTPUT=[
 		"advanced": {}
 	},
 	{
-		"core_identity": "坚韧果断的执行型人格",
-		"motivation": "通过掌控局面与解决冲突建立价值感",
-		"decision_style": "直接而务实",
-		"social_style": "坦率直截",
-		"strength_traits": ["执行力","抗压","果断"],
-		"growth_opportunities": ["避免过度强硬","提升协作耐心"],
+		"core_identity": "行动驱动与尝试导向",
+		"motivation": "启动新事物并取得快速进展",
+		"decision_style": "直接与快速",
+		"social_style": "外向坦率",
+		"strength_traits": ["勇气","执行","开拓"],
+		"growth_opportunities": ["耐心培养"],
 		"advanced": {}
 	}
 ]

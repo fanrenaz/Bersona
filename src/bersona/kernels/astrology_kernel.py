@@ -26,80 +26,51 @@ ZODIAC_SIGNS = [
 
 
 class AstrologyKernel(BaseKernel):
-    """
-    Calculates the sun sign based on the user's birth date.
+    """高保真占星内核：始终使用瑞士星历计算太阳、月亮、上升以及行星所处星座。
+
+    如果未提供具体出生时间或地点，使用 `utils.location.get_defaults` 中的默认值进行推断，
+    不再退化到仅基于日期的太阳星座分段法。这样可以保持统一的输出结构，方便下游结构化与人格生成阶段。
     """
 
     def calculate(self, birth_date: date, birth_time: "time | None" = None, location: "tuple[float, float] | None" = None) -> dict:
+        """计算完整星盘核心字段。
+
+        返回字段：
+        - sun_sign: 太阳星座
+        - moon_sign: 月亮星座
+        - ascendant_sign: 上升星座
+        - planets: 其余行星到星座的映射（不含 Sun/Moon）
         """
-        Determines the sun sign from the birth date.
+        # 统一进入高保真模式，填充默认时间与地点
+        birth_time, location = get_defaults(birth_time, location)
 
-        :param birth_date: The birth date of the user.
-        :return: A dictionary containing the sun sign.
-        """
-        # --- High-Fidelity Mode ---
-        if birth_time is not None or location is not None:
-            birth_time, location = get_defaults(birth_time, location)
-            
-            # Convert local birth time to UTC
-            tz_str = get_timezone_str(location[0], location[1])
-            local_tz = pytz.timezone(tz_str)
-            local_dt = local_tz.localize(datetime.combine(birth_date, birth_time))
-            utc_dt = local_dt.astimezone(pytz.utc)
-            
-            # Set Swiss Ephemeris path
-            swe.set_ephe_path('/usr/share/sweph/ephe') # Adjust this path if necessary
+        # 将本地时间转换为 UTC
+        tz_str = get_timezone_str(location[0], location[1])
+        local_tz = pytz.timezone(tz_str)
+        local_dt = local_tz.localize(datetime.combine(birth_date, birth_time))
+        utc_dt = local_dt.astimezone(pytz.utc)
 
-            # Calculate Julian Day
-            jd = swe.utc_to_jd(utc_dt.year, utc_dt.month, utc_dt.day, utc_dt.hour, utc_dt.minute, utc_dt.second, 1)[1]
+        # 设置星历路径（容器或宿主系统需确保 ephe 目录存在）
+        swe.set_ephe_path('/usr/share/sweph/ephe')  # TODO: 可参数化或通过环境变量配置
 
-            # Calculate Ascendant and houses
-            houses = swe.houses(jd, location[0], location[1], b'P')
-            ascendant_longitude = houses[0][0]
-            ascendant_sign = ZODIAC_SIGNS[int(ascendant_longitude / 30)]
+        # 计算儒略日
+        jd = swe.utc_to_jd(utc_dt.year, utc_dt.month, utc_dt.day, utc_dt.hour, utc_dt.minute, utc_dt.second, 1)[1]
 
-            # Calculate planets
-            planets = {}
-            for planet_id, planet_name in PLANET_NAMES.items():
-                planet_pos = swe.calc_ut(jd, planet_id)[0]
-                sign_index = int(planet_pos[0] / 30)
-                planets[planet_name] = ZODIAC_SIGNS[sign_index]
+        # 计算宫位与上升星座
+        houses = swe.houses(jd, location[0], location[1], b'P')
+        ascendant_longitude = houses[0][0]
+        ascendant_sign = ZODIAC_SIGNS[int(ascendant_longitude / 30)]
 
-            return {
-                "sun_sign": planets.pop("Sun"),
-                "moon_sign": planets.pop("Moon"),
-                "ascendant_sign": ascendant_sign,
-                "planets": planets
-            }
+        # 计算各行星位置
+        planets = {}
+        for planet_id, planet_name in PLANET_NAMES.items():
+            planet_pos = swe.calc_ut(jd, planet_id)[0]
+            sign_index = int(planet_pos[0] / 30)
+            planets[planet_name] = ZODIAC_SIGNS[sign_index]
 
-        # --- Baseline Mode (Sun Sign only) ---
-        month = birth_date.month
-        day = birth_date.day
-
-
-        if (month == 3 and day >= 21) or (month == 4 and day <= 19):
-            sign = "Aries"
-        elif (month == 4 and day >= 20) or (month == 5 and day <= 20):
-            sign = "Taurus"
-        elif (month == 5 and day >= 21) or (month == 6 and day <= 21):
-            sign = "Gemini"
-        elif (month == 6 and day >= 22) or (month == 7 and day <= 22):
-            sign = "Cancer"
-        elif (month == 7 and day >= 23) or (month == 8 and day <= 22):
-            sign = "Leo"
-        elif (month == 8 and day >= 23) or (month == 9 and day <= 22):
-            sign = "Virgo"
-        elif (month == 9 and day >= 23) or (month == 10 and day <= 23):
-            sign = "Libra"
-        elif (month == 10 and day >= 24) or (month == 11 and day <= 22):
-            sign = "Scorpio"
-        elif (month == 11 and day >= 23) or (month == 12 and day <= 21):
-            sign = "Sagittarius"
-        elif (month == 12 and day >= 22) or (month == 1 and day <= 19):
-            sign = "Capricorn"
-        elif (month == 1 and day >= 20) or (month == 2 and day <= 18):
-            sign = "Aquarius"
-        else:  # (month == 2 and day >= 19) or (month == 3 and day <= 20)
-            sign = "Pisces"
-
-        return {"sun_sign": sign}
+        return {
+            "sun_sign": planets.pop("Sun"),
+            "moon_sign": planets.pop("Moon"),
+            "ascendant_sign": ascendant_sign,
+            "planets": planets
+        }

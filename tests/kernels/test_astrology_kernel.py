@@ -7,7 +7,8 @@ class TestAstrologyKernel(unittest.TestCase):
     def setUp(self):
         self.kernel = AstrologyKernel()
 
-    def test_calculate_sun_sign(self):
+    def test_calculate_high_fidelity_defaulted(self):
+        """日期仅提供时也应返回高保真结构（使用默认时间与地点）。只断言返回字段完整与太阳星座正确。"""
         test_cases = {
             "Aries": date(2024, 3, 21),
             "Taurus": date(2024, 4, 20),
@@ -22,18 +23,22 @@ class TestAstrologyKernel(unittest.TestCase):
             "Aquarius": date(2024, 1, 20),
             "Pisces": date(2024, 2, 19),
         }
-
         for sign, dt in test_cases.items():
             with self.subTest(sign=sign, date=dt):
                 result = self.kernel.calculate(dt)
-                self.assertEqual(result, {"sun_sign": sign})
+                self.assertEqual(result['sun_sign'], sign)
+                # 基本结构字段存在
+                self.assertIn('moon_sign', result)
+                self.assertIn('ascendant_sign', result)
+                self.assertIn('planets', result)
+                self.assertIsInstance(result['planets'], dict)
+                self.assertGreaterEqual(len(result['planets']), 3)
 
-    def test_boundary_dates(self):
-        # Test boundary between Pisces and Aries
+    def test_boundary_dates_sun_sign(self):
+        # Pisces ↔ Aries 边界
         self.assertEqual(self.kernel.calculate(date(2024, 3, 20))['sun_sign'], "Pisces")
         self.assertEqual(self.kernel.calculate(date(2024, 3, 21))['sun_sign'], "Aries")
-
-        # Test boundary between Capricorn and Aquarius
+        # Capricorn ↔ Aquarius 边界
         self.assertEqual(self.kernel.calculate(date(2024, 1, 19))['sun_sign'], "Capricorn")
         self.assertEqual(self.kernel.calculate(date(2024, 1, 20))['sun_sign'], "Aquarius")
 
