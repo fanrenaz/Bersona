@@ -158,18 +158,30 @@ class Bersona:
             return None
         return None
 
-    def astrology_describe(self, chart: ChartResult, model: Optional[str] = None, language: str = 'zh') -> AstrologyDesc:
+    def astrology_describe(self,
+                           chart: ChartResult,
+                           model: Optional[str] = None,
+                           language: str = 'zh',
+                           system_prompt: Optional[str] = None) -> AstrologyDesc:
         """基于星盘结果生成占星文字描述 (必须依赖 LLM)。
 
         参数:
           chart: ChartResult 对象
           model: 指定 LLM 模型名称（可覆盖初始化默认）
-          language: 'zh' 或 'en' 等，用于选择基础提示模板
+          language: 'zh' 或 'en' 等，用于选择基础提示模板 (例如 zh-cn, en-US 会取前缀)
+          system_prompt: 自定义 system prompt，若提供则覆盖内置 BASE_PROMPTS 选择逻辑
 
-        若 LLM 不可用或调用失败将抛出异常，不做占位回退。"""
+        行为:
+          - 若提供 system_prompt 则直接使用，不再根据 language 查表。
+          - 未提供 system_prompt 时，按 language 前缀匹配 BASE_PROMPTS，找不到回退英文。
+
+        异常:
+          - RuntimeError: LLM 不可用或调用失败。
+          - 其他底层异常透传。
+        """
         if not self.llm_available:
             raise RuntimeError('LLM 不可用：请设置 OPENAI_API_KEY 并确保网络可访问。')
-        base_prompt = BASE_PROMPTS.get(language.split('-')[0], BASE_PROMPTS['en'])
+        base_prompt = system_prompt or BASE_PROMPTS.get(language.split('-')[0], BASE_PROMPTS['en'])
         chart_text = chart_to_text(chart)
         messages = [
             {'role': 'system', 'content': base_prompt},
