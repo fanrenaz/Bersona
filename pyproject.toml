@@ -30,6 +30,7 @@ placidus = ["pyswisseph>=2.10.3"]
 llm = ["openai>=1.0.0"]
 geocode = ["geopy>=2.4.0"]
 all = ["pyswisseph>=2.10.3", "openai>=1.0.0", "geopy>=2.4.0"]
+dev = ["pytest>=7.0"]
 
 [project.urls]
 Homepage = "https://github.com/fanrenaz/Bersona"
