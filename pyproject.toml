@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bersona"
+version = "0.1.0"
+description = "Bersona: Astrology chart generation and LLM-based interpretation"
+readme = "README.md"
+authors = [
+  { name = "fanrenaz" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Astronomy",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+keywords = ["astrology", "astronomy", "llm", "chart", "skyfield"]
+dependencies = [
+  "skyfield>=1.46",
+  "pydantic>=2.0",
+]
+# 可选依赖分组
+[project.optional-dependencies]
+placidus = ["pyswisseph>=2.10.3"]
+llm = ["openai>=1.0.0"]
+geocode = ["geopy>=2.4.0"]
+all = ["pyswisseph>=2.10.3", "openai>=1.0.0", "geopy>=2.4.0"]
+
+[project.urls]
+Homepage = "https://github.com/fanrenaz/Bersona"
+Source = "https://github.com/fanrenaz/Bersona"
+Issues = "https://github.com/fanrenaz/Bersona/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["bersona"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["src"]

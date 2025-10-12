@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install base deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[all]
+
+      - name: Cache Skyfield ephemeris
+        uses: actions/cache@v4
+        with:
+          path: ~/.skyfield
+          key: skyfield-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            skyfield-${{ runner.os }}-
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Build wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel
+
+      - name: List dist
+        run: ls -l dist
