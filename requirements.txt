@@ -1,0 +1,6 @@
+skyfield>=1.46
+# 可选：用于 Placidus 宫位计算
+pyswisseph>=2.10.3
+pydantic>=2.0
+geopy>=2.4.0  # 可选：未来用于在线地理编码扩展
+openai>=1.0.0  # LLM 集成

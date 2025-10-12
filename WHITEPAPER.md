@@ -1,5 +1,5 @@
 # Bersona: The Generative Persona Engine (Astrology Focus)
-## Project Whitepaper V1.1 (2025-10 聚焦占星版)
+## Project Whitepaper V1.1 
 
 ### **摘要 (Abstract)**
 
