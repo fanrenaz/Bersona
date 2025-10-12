@@ -1,192 +1,195 @@
-# Bersona 星盘生成 (src 布局)
+<div align="center">
 
-一个使用 Skyfield (以及可选 Swiss Ephemeris) 生成西方占星出生星盘并可调用 LLM 生成解释的 Python 包。现采用标准 `src/` 布局与 Pydantic 2 模型。安装后可直接 `from bersona import Bersona`。
+# Bersona
 
-## 目录结构
-```
-pyproject.toml
-requirements.txt (开发用，可选)
-src/
-  bersona/
-    __init__.py
-    _version.py
-    astrology_kernel.py
-    constants.py
-    models.py
-    prompts.py
-    utils.py
-tests/
-  test_chart_basic.py
-  test_version.py
-.github/
-  workflows/ci.yml
-scripts/
-  bump_version.py
-```
+精准西方占星本命星盘生成与 LLM 解释引擎。
 
-## 版本号管理
-当前版本通过 `src/bersona/_version.py` 与 `pyproject.toml` 同步维护，公开 `bersona.__version__`。
+<p>
+<strong>Generate natal charts (Sun..Pluto, Ascendant, Houses, Aspects, Mutual Receptions) and obtain structured AI interpretations.</strong>
+</p>
 
-查看版本：
-```python
-import bersona
-print(bersona.__version__)
-```
+<p>
+<img alt="python" src="https://img.shields.io/badge/Python-3.10%2B-blue" />
+<img alt="license" src="https://img.shields.io/badge/License-MIT-green" />
+<img alt="status" src="https://img.shields.io/badge/status-alpha-orange" />
+</p>
 
-使用脚本自动 bump：
-```bash
-python scripts/bump_version.py patch   # 0.1.0 -> 0.1.1
-python scripts/bump_version.py minor   # 0.1.x -> 0.2.0
-python scripts/bump_version.py major   # 0.x.y -> 1.0.0
-```
-脚本会同时修改 `pyproject.toml` 与 `_version.py`，请提交并打 tag：
-```bash
-git add pyproject.toml src/bersona/_version.py
-git commit -m "chore: bump version"
-git tag v$(python -c "import bersona;print(bersona.__version__)")
-```
+</div>
 
-## CI (GitHub Actions)
-工作流文件位于 `.github/workflows/ci.yml`，在 push / PR 到 `main` 时执行：
-- 多 Python 版本 (3.10 / 3.11 / 3.12)
-- 安装核心与可选依赖 (`.[all]`)
-- 缓存 pip 与 Skyfield 星历目录
-- 运行 pytest
-- 构建 wheel 包
+## 1. 简介 (Overview)
+`Bersona` 提供本命星盘核心计算与基于 LLM 的自动解释。核心依赖 Skyfield（高精度行星位置），可选 PySwissEph（Placidus 宫位），并以 Pydantic 2 定义结构化数据模型，方便序列化与集成。
 
-后续可扩展：
-- 增加 Ruff/Black 格式检查
-- 发布时自动上传到 PyPI（在 tag 触发下添加发布作业）
-- 增量测试报告 & 覆盖率上传 Codecov
+应用场景：
+- 在线占星应用 / 微信小程序 / Web 后端服务
+- 星盘计算微服务或批量数据处理
+- 将星盘结构转接入 LLM 进行定制风格解读
 
-## 安装
-推荐使用 `pip` 基于 `pyproject.toml` 安装：
-```bash
-pip install .            # 本地开发安装
-# 或构建轮子
-pip wheel . -w dist
-```
-仅核心功能（行星 + 模型）：
+## 2. 主要特性 (Features)
+- 行星位置：Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto
+- 宫位系统：Equal；安装 `pyswisseph` 自动支持 Placidus
+- 上升星座 (Ascendant)
+- 主要相位：0° / 60° / 90° / 120° / 180°，支持自定义容许度 (orb)
+- 逆行标记：通过前一日黄经差异简单判定
+- 互溶接纳 (Mutual Reception)：传统 / 现代主宰体系可选
+- 多格式出生时间解析：ISO, 简化, 中文日期, 时间戳
+- 可选地理编码：行政区解析 + Nominatim（需要网络）
+- LLM 解释：基于完整星盘文本提示生成自然语言描述，可自定义 system prompt
+
+## 3. 安装 (Installation)
+核心最小安装：
 ```bash
 pip install .
 ```
-带 Placidus、LLM、地理编码全部可选依赖：
+全部可选功能：
 ```bash
 pip install .[all]
 ```
-按需安装：
+分组安装：
 ```bash
 pip install .[placidus]
 pip install .[llm]
 pip install .[geocode]
+pip install .[dev]  # 测试依赖 (pytest)
 ```
 
-若只想快速体验（使用旧的 requirements 方式）：
-```bash
-pip install -r requirements.txt
-```
-
-## 快速开始
+## 4. 快速开始 (Quick Start)
 ```python
 from bersona import Bersona
-import zoneinfo
 from datetime import datetime
+import zoneinfo
 
-b = Bersona()
 tz = zoneinfo.ZoneInfo('Asia/Shanghai')
 dt = datetime(1990, 5, 17, 14, 30, tzinfo=tz)
-chart = b.generate_chart(dt, latitude=31.2304, longitude=121.4737, house_system='placidus')
+astro = Bersona()
+chart = astro.generate_chart(dt, latitude=31.2304, longitude=121.4737, house_system='placidus')
 print(chart.summary())
 ```
 
-## 自定义系统提示 (LLM)
-`astrology_describe` 现支持传入 `system_prompt` 覆盖默认语言模板：
+LLM 解释：
 ```python
-if b.llm_available:
-    desc = b.astrology_describe(chart, language='zh', system_prompt='你是一位温暖且专业的占星导师，请分段解释：')
+if astro.llm_available:
+    desc = astro.astrology_describe(chart, language='zh', system_prompt='你是一位温暖且专业的占星导师，请分段解释：')
     print(desc.text)
 ```
 
-## 主要特性
-- 行星位置：Sun..Pluto 黄道经纬度 (Skyfield)
-- 上升与宫位：等宫 / Placidus (需 pyswisseph)
-- 主要相位与可自定义 orb
-- 互溶接纳 (Mutual Reception) 传统/现代主宰方案
-- 多格式出生时间解析（含中文日期）
-- 城市行政区解析 + 可选在线地理编码
-- LLM 集成生成占星文字解释 (OpenAI 兼容)
+## 5. 数据模型 (Data Models)
+核心 Pydantic 模型：
+- `ChartInput` / `ChartSettings` / `ChartResult`
+- `Ascendant` / `HouseCusp` / `PlanetPosition` / `Aspect` / `MutualReception`
+- `AstrologyDesc` (LLM 输出包装)
 
-## 环境变量
-- `BERSONA_EPHEMERIS` 指定星历文件 (默认 de421.bsp)
-- `SKYFIELD_CACHE_DIR` 自定义 Skyfield 缓存目录
-- `OPENAI_API_KEY` / `OPENAI_KEY` LLM 密钥
-- `OPENAI_BASE_URL` 自定义 API 端点
-- `OPENAI_MODEL` 默认模型名称
-
-## 测试
-```bash
-pytest -q
+示例：
+```python
+from bersona.models import ChartResult
+print(chart.planets['Sun'].ecliptic_longitude)
+print(chart.aspects[0].aspect)
+print(chart.model_dump())
 ```
 
-## 构建与分发建议
-发布前:
-1. 使用 bump 脚本或手动更新版本号
-2. 生成分发包：`python -m build`
-3. 上传：`twine upload dist/*`
+## 6. 时间输入支持 (Date Parsing)
+`parse_birth_datetime` 支持：
+- `1990-05-17 14:30:00`, `1990/05/17 14:30`
+- 中文：`1990年5月17日14时30分`
+- 仅日期：`1990-05-17` 自动补中午 12:00 并标记 `date_only=True`
+- 时间戳：`643708200`
 
-### 发布到 TestPyPI (推荐先试)
+## 7. 环境变量 (Environment Variables)
+| 变量 | 说明 | 默认 |
+|------|------|------|
+| `BERSONA_EPHEMERIS` | 星历文件名 | `de421.bsp` |
+| `SKYFIELD_CACHE_DIR` | 自定义缓存目录 | `~/.skyfield` |
+| `OPENAI_API_KEY` / `OPENAI_KEY` | LLM API 密钥 | 无 |
+| `OPENAI_BASE_URL` | 自定义 OpenAI 接口地址 | 官方地址 |
+| `OPENAI_MODEL` | 默认模型名称 | 无 |
+| `BERSONA_QUIET` | 关闭下载提示 (1) | 0 |
+| `BERSONA_LOG_LEVEL` | 未来日志级别 | `info` |
+
+可复制 `.env.example`：
 ```bash
-python -m pip install --upgrade build twine
-python -m build  # 生成 dist/*.whl 与 *.tar.gz
+cp .env.example .env
+source .env
+```
+
+## 8. API 摘要 (API Summary)
+| 方法 | 说明 | 关键参数 |
+|------|------|---------|
+| `Bersona.generate_chart` | 生成星盘 | `birth_dt_input`, `latitude`, `longitude`, `house_system` |
+| `Bersona.astrology_describe` | LLM 解释 | `chart`, `language`, `system_prompt`, `model` |
+| `Bersona.llm_chat` | 低层对话 | `messages`, `model`, `temperature` |
+| `utils.chart_to_text` | 星盘序列化文本 | `ChartResult` |
+| `utils.parse_birth_datetime` | 输入时间解析 | 多格式字符串/时间戳 |
+
+## 9. 测试 (Testing)
+```bash
+pip install .[dev]
+python -m pytest -q
+```
+CI 在 push / PR 自动运行多 Python 版本测试与构建。
+
+## 10. 构建与发布 (Build & Release)
+构建：
+```bash
+python -m build
+twine check dist/*
+```
+TestPyPI 发布与验证：
+```bash
 twine upload --repository-url https://test.pypi.org/legacy/ dist/*
-
-# 验证安装（使用隔离虚拟环境）
-python -m venv .venv-test
-source .venv-test/bin/activate
+python -m venv .venv-test && source .venv-test/bin/activate
 pip install --index-url https://test.pypi.org/simple --extra-index-url https://pypi.org/simple bersona
-python -c "import bersona;print(bersona.__version__)"
+```
+正式发布（自动）：打 tag `vX.Y.Z` 触发 `release.yml` 使用 `PYPI_API_TOKEN`。
+
+版本号管理：
+```bash
+python scripts/bump_version.py patch
+git tag v$(python -c "import bersona;print(bersona.__version__)")
+git push --tags
 ```
 
-### 正式发布到 PyPI
-准备：在 GitHub 仓库 Settings -> Secrets 添加 `PYPI_API_TOKEN`（pypi.org 上创建的 token）。
+## 11. 版本策略 (Versioning)
+语义化版本：`MAJOR.MINOR.PATCH`。
+- 初期 (<1.0.0) 频繁变更：提升 MINOR 表示潜在破坏性。
+- PATCH：bug 修复或非结构化微改。
+- 预发布：可手动设置 `0.x.yrc1` / `0.x.ya1`。
 
-两种方式：
-1. 手动：
-  ```bash
-  python -m build
-  twine upload dist/*
-  ```
-2. 自动 (推荐)：
-  - 先 bump 版本并提交：
-    ```bash
-    python scripts/bump_version.py patch
-    git add pyproject.toml src/bersona/_version.py
-    git commit -m "chore: release v$(python -c 'import bersona;print(bersona.__version__)')"
-    git tag v$(python -c 'import bersona;print(bersona.__version__)')
-    git push --tags
-    ```
-  - 触发 `release.yml` 工作流自动构建并上传。
+## 12. 贡献指南 (Contributing)
+欢迎 Issue 与 PR：
+1. Fork & 创建分支：`feature/xxx`
+2. 添加/更新测试
+3. 运行 `python -m pytest -q`
+4. 提交并描述意图与行为变化
 
-### 版本与 Tag 约定
-- 使用语义化版本：`MAJOR.MINOR.PATCH`
-- 预发布可采用：`0.2.0a1`, `0.2.0rc1`（当前 bump 脚本未自动生成，需手动改版本号）。
-- Tag 格式：`vX.Y.Z` 与 `pyproject.toml` / `_version.py` 对应。
+建议工具：后续将加入 Ruff/Black；提交前可格式化。
 
-### 常见发布问题
-- 403 Forbidden：检查 `PYPI_API_TOKEN` 是否具有项目上传权限。
-- 文件已存在：可能重复上传同版本；删除 dist/ 重建并 bump 新版本号。
-- 依赖未正确安装：确认 `pyproject.toml` 中 `dependencies` 与 extras 正确，避免只写在旧的 `requirements.txt`。
-- 缺少 License：PyPI 会显示 “No license” 警告；已添加 `LICENSE` 文件即可。
+## 13. 路线图 (Roadmap)
+- Transit (行运) / Progressions 支持
+- 更多天体：凯龙星、黑月莉莉丝、月亮交点
+- 高级相位：半刑、梅花等
+- 行星尊贵（旺陷庙失势）分析
+- LLM 输出结构化 JSON + 可信度指标
+- 国际化多语言模板扩展
 
-## 后续改进 (Roadmap)
-- Transit / Progressions 支持
-- 更多天体与相位类型
-- 容许度细化按行星分类
-- LLM 结构化输出 (JSON schema)
-- chart_snapshot 填充关键信息摘要
-- 自动发布工作流 (tag push -> PyPI)
+## 14. License
+MIT License © 2025 fanrenaz
 
-## License
-建议添加 MIT 或 Apache-2.0 许可证，可在 `pyproject.toml` 与根目录添加 `LICENSE` 文件。
+## 15. English Quick Glance
+```bash
+pip install bersona
+```
+```python
+from bersona import Bersona
+from datetime import datetime
+import zoneinfo
+tz = zoneinfo.ZoneInfo('UTC')
+chart = Bersona().generate_chart(datetime(1990,5,17,14,30,tzinfo=tz), 40.0, -74.0)
+print(chart.summary())
+```
+LLM description (if API key set):
+```python
+desc = Bersona().astrology_describe(chart, language='en', system_prompt='You are a concise astrologer:')
+print(desc.text)
+```
 
-(README 已更新：新增版本管理与 CI 章节。)
+---
+欢迎反馈与建议，共同改进 Bersona。
