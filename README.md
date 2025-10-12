@@ -134,6 +134,50 @@ pytest -q
 2. 生成分发包：`python -m build`
 3. 上传：`twine upload dist/*`
 
+### 发布到 TestPyPI (推荐先试)
+```bash
+python -m pip install --upgrade build twine
+python -m build  # 生成 dist/*.whl 与 *.tar.gz
+twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+
+# 验证安装（使用隔离虚拟环境）
+python -m venv .venv-test
+source .venv-test/bin/activate
+pip install --index-url https://test.pypi.org/simple --extra-index-url https://pypi.org/simple bersona
+python -c "import bersona;print(bersona.__version__)"
+```
+
+### 正式发布到 PyPI
+准备：在 GitHub 仓库 Settings -> Secrets 添加 `PYPI_API_TOKEN`（pypi.org 上创建的 token）。
+
+两种方式：
+1. 手动：
+  ```bash
+  python -m build
+  twine upload dist/*
+  ```
+2. 自动 (推荐)：
+  - 先 bump 版本并提交：
+    ```bash
+    python scripts/bump_version.py patch
+    git add pyproject.toml src/bersona/_version.py
+    git commit -m "chore: release v$(python -c 'import bersona;print(bersona.__version__)')"
+    git tag v$(python -c 'import bersona;print(bersona.__version__)')
+    git push --tags
+    ```
+  - 触发 `release.yml` 工作流自动构建并上传。
+
+### 版本与 Tag 约定
+- 使用语义化版本：`MAJOR.MINOR.PATCH`
+- 预发布可采用：`0.2.0a1`, `0.2.0rc1`（当前 bump 脚本未自动生成，需手动改版本号）。
+- Tag 格式：`vX.Y.Z` 与 `pyproject.toml` / `_version.py` 对应。
+
+### 常见发布问题
+- 403 Forbidden：检查 `PYPI_API_TOKEN` 是否具有项目上传权限。
+- 文件已存在：可能重复上传同版本；删除 dist/ 重建并 bump 新版本号。
+- 依赖未正确安装：确认 `pyproject.toml` 中 `dependencies` 与 extras 正确，避免只写在旧的 `requirements.txt`。
+- 缺少 License：PyPI 会显示 “No license” 警告；已添加 `LICENSE` 文件即可。
+
 ## 后续改进 (Roadmap)
 - Transit / Progressions 支持
 - 更多天体与相位类型
