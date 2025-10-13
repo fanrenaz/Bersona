@@ -3,7 +3,7 @@
 Edit here (or use scripts/bump_version.py) when releasing.
 """
 __all__ = ["__version__", "get_version"]
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 def get_version() -> str:
     return __version__
