@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bersona"
-version = "0.1.0"
+version = "0.1.1"
 description = "Bersona: Astrology chart generation and LLM-based interpretation"
 readme = "README.md"
 authors = [
