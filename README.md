@@ -61,14 +61,14 @@ import zoneinfo
 tz = zoneinfo.ZoneInfo('Asia/Shanghai')
 dt = datetime(1990, 5, 17, 14, 30, tzinfo=tz)
 astro = Bersona()
-chart = astro.generate_chart(dt, latitude=31.2304, longitude=121.4737, house_system='placidus')
+chart = astro.generate_chart(dt)
 print(chart.summary())
 ```
 
 LLM 解释：
 ```python
 if astro.llm_available:
-    desc = astro.astrology_describe(chart, language='zh', system_prompt='你是一位温暖且专业的占星导师，请分段解释：')
+    desc = astro.astrology_describe(chart)
     print(desc.text)
 ```
 
