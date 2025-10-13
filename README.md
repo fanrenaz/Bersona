@@ -191,5 +191,53 @@ desc = Bersona().astrology_describe(chart, language='en', system_prompt='You are
 print(desc.text)
 ```
 
+## 16. System Prompt 定制 (System Prompt Customization)
+
+Bersona 在实例上维护一个可覆盖的 system prompt，用于引导 LLM 撰写解释文本。
+
+优先级（由高到低）：
+1. 调用 `astrology_describe` 时显式传入 `system_prompt` 参数
+2. 实例属性 `bersona.system_prompt`（可通过 `set_system_prompt` 设置）
+3. `BASE_PROMPTS` 中按语言代码的默认模板（受环境变量 `BERSONA_DEFAULT_LANG` 影响，默认 zh）
+
+查看当前实例的 system prompt：
+```python
+from bersona import Bersona
+b = Bersona()
+print(b.system_prompt)  # 当前使用的 system prompt
+```
+
+覆盖 / 更新：
+```python
+b.set_system_prompt("你是一位极其简洁的占星分析师，请用要点式描述性格与潜力。")
+desc = b.astrology_describe(chart)  # 将使用新的自定义 prompt
+```
+
+恢复默认（清除覆盖）：
+```python
+b.set_system_prompt("")  # 或 None
+# 再次调用将回退到 BASE_PROMPTS[默认语言]
+desc = b.astrology_describe(chart)
+```
+
+临时指定（仅本次调用生效，不改变实例属性）：
+```python
+desc = b.astrology_describe(chart, system_prompt="You are a concise astrologer. Output in English.")
+```
+
+多语言提示（`language` 会用于选择默认模板；若传入自定义 system_prompt 将直接覆盖语言逻辑）：
+```python
+desc = b.astrology_describe(chart, language="en")
+```
+
+环境变量：
+- `BERSONA_DEFAULT_LANG`：启动时选择默认语言的基础模板（如 `en`, `zh`）。
+- 当你需要动态切换风格，可在多实例中分别设置不同 `system_prompt`。
+
+快速要点：
+- 长期风格：用 `set_system_prompt`.
+- 一次性定制：在 `astrology_describe` 里传 `system_prompt`.
+- 设空字符串即可回退默认。
+
 ---
 欢迎反馈与建议，共同改进 Bersona。

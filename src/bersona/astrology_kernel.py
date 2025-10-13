@@ -86,6 +86,9 @@ except Exception as e:
     _SWISSEPH_AVAILABLE = False
 
 class Bersona:
+    # 新增: 默认语言类属性（可按需扩展）
+    DEFAULT_LANGUAGE = 'zh'
+
     def __init__(self) -> None:
         self.available_skyfield = _SKYFIELD_AVAILABLE
         self.available_swisseph = _SWISSEPH_AVAILABLE
@@ -93,6 +96,11 @@ class Bersona:
         self._llm_model = None
         api_key = None
         base_url = None
+        # 新增: 实例级 system_prompt，可直接外部赋值覆盖
+        # 默认按照 DEFAULT_LANGUAGE 或环境变量 BERSONA_DEFAULT_LANG 选择
+        default_lang = os.getenv("BERSONA_DEFAULT_LANG", self.DEFAULT_LANGUAGE)
+        self.system_prompt: Optional[str] = BASE_PROMPTS.get(default_lang, BASE_PROMPTS[self.DEFAULT_LANGUAGE])
+
         logger.debug("初始化 Bersona: skyfield=%s swisseph=%s", self.available_skyfield, self.available_swisseph)
         try:
             api_key = os.getenv('OPENAI_API_KEY') or os.getenv('OPENAI_KEY')
@@ -113,6 +121,14 @@ class Bersona:
                 logger.warning("LLM 初始化失败: %s", e)
                 self._llm_client = None
         self.llm_available = self._llm_client is not None
+
+    # 新增: 设置 / 覆盖实例级 system prompt 的便捷方法
+    def set_system_prompt(self, prompt: str) -> None:
+        """
+        设置实例级的 system prompt。之后 astrology_describe 若未显式传入 system_prompt 参数，
+        将使用此实例级 prompt。传入空字符串将视为清除，自行回退到 BASE_PROMPTS 逻辑。
+        """
+        self.system_prompt = prompt or None
 
     def llm_chat(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> Optional[str]:
         if not self.llm_available:
@@ -144,21 +160,20 @@ class Bersona:
                            language: str = 'zh',
                            system_prompt: Optional[str] = None) -> AstrologyDesc:
         """调用 LLM 生成占星描述，并兼容多种包裹格式提取描述正文。
-
-        支持以下几种可能的输出形式：
-        1. 代码块语言标记形式：
-           ```ASTROLOGY_DESC_START
-           <正文>
-           ```ASTROLOGY_DESC_END
-        2. 单行紧贴三反引号：
-           ```ASTROLOGY_DESC_START```<正文>```ASTROLOGY_DESC_END```
-        3. 无反引号，仅纯文本标记：
-           ASTROLOGY_DESC_START ... ASTROLOGY_DESC_END
-        若均未匹配到，则退回完整响应文本。
+        支持多种输出标记。
+        优先级：显式参数 system_prompt > 实例属性 self.system_prompt > 语言默认 BASE_PROMPTS。
         """
         if not self.llm_available:
             raise RuntimeError('LLM 不可用：请设置 OPENAI_API_KEY 并确保网络可访问。')
-        base_prompt = system_prompt or BASE_PROMPTS.get(language.split('-')[0], BASE_PROMPTS['en'])
+
+        # 修改: 使用实例属性 system_prompt
+        if system_prompt:
+            base_prompt = system_prompt
+        elif self.system_prompt:
+            base_prompt = self.system_prompt
+        else:
+            base_prompt = BASE_PROMPTS.get(language.split('-')[0], BASE_PROMPTS['en'])
+
         chart_text = chart_to_text(chart)
         messages = [
             {'role': 'system', 'content': base_prompt},
