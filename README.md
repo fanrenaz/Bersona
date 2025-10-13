@@ -44,13 +44,7 @@ pip install .
 ```bash
 pip install .[all]
 ```
-分组安装：
-```bash
-pip install .[placidus]
-pip install .[llm]
-pip install .[geocode]
-pip install .[dev]  # 测试依赖 (pytest)
-```
+
 
 ## 4. 快速开始 (Quick Start)
 ```python
