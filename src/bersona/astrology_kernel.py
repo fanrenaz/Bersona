@@ -1,8 +1,20 @@
-# ...migrated content from root astrology_kernel.py...
 from datetime import datetime, timedelta, timezone
 import re
 from typing import Dict, Any, List, Optional
-import math
+import os
+import logging
+# 初始化日志
+logger = logging.getLogger("bersona")
+if not logger.handlers:
+    _handler = logging.StreamHandler()
+    _formatter = logging.Formatter("[%(asctime)s] %(levelname)s %(name)s: %(message)s")
+    _handler.setFormatter(_formatter)
+    logger.addHandler(_handler)
+log_level = os.getenv("BERSONA_LOG_LEVEL", "INFO").upper()
+try:
+    logger.setLevel(getattr(logging, log_level, logging.INFO))
+except Exception:
+    logger.setLevel(logging.INFO)
 
 from .constants import (
     ZODIAC_SIGNS,
@@ -27,7 +39,6 @@ from .models import (
 )
 
 try:
-    import os
     from skyfield.api import load, wgs84
     _EPHEMERIS_NAME = os.getenv('BERSONA_EPHEMERIS', 'de421.bsp')
     cache_dir = os.getenv('SKYFIELD_CACHE_DIR')
@@ -39,14 +50,14 @@ try:
         ephemeris_path = os.path.join(cache_dir, _EPHEMERIS_NAME)
         if not os.path.exists(ephemeris_path):
             approx_size_mb = '20' if 'de421' in _EPHEMERIS_NAME else ('120' if 'de440' in _EPHEMERIS_NAME else '若干')
-            print(f"[Bersona] 尚未发现星历文件 '{_EPHEMERIS_NAME}'，首次使用将自动下载约 {approx_size_mb}MB，需保持网络畅通...")
+            logger.info(f"[Bersona] 尚未发现星历文件 '{_EPHEMERIS_NAME}'，首次使用将自动下载约 {approx_size_mb}MB，需保持网络畅通...")
         _EPHEMERIS = loader(_EPHEMERIS_NAME)
     else:
         _TS = load.timescale()
         home_cache = os.path.join(os.path.expanduser('~'), '.skyfield', _EPHEMERIS_NAME)
         if not os.path.exists(home_cache):
             approx_size_mb = '20' if 'de421' in _EPHEMERIS_NAME else ('120' if 'de440' in _EPHEMERIS_NAME else '若干')
-            print(f"[Bersona] 首次使用星历 '{_EPHEMERIS_NAME}'，将自动下载约 {approx_size_mb}MB，需保持网络畅通...")
+            logger.info(f"[Bersona] 首次使用星历 '{_EPHEMERIS_NAME}'，将自动下载约 {approx_size_mb}MB，需保持网络畅通...")
         _EPHEMERIS = load(_EPHEMERIS_NAME)
     _PLANETS = {
         "Sun": _EPHEMERIS["sun"],
@@ -61,13 +72,17 @@ try:
         "Pluto": _EPHEMERIS["pluto barycenter"],
     }
     _SKYFIELD_AVAILABLE = True
-except Exception:
+    logger.debug("Skyfield 已加载: %s", _EPHEMERIS_NAME)
+except Exception as e:
+    logger.warning("Skyfield 加载失败: %s", e)
     _SKYFIELD_AVAILABLE = False
 
 try:
     import swisseph as swe
     _SWISSEPH_AVAILABLE = True
-except Exception:
+    logger.debug("SwissEph 已加载")
+except Exception as e:
+    logger.warning("SwissEph 加载失败: %s", e)
     _SWISSEPH_AVAILABLE = False
 
 class Bersona:
@@ -78,11 +93,12 @@ class Bersona:
         self._llm_model = None
         api_key = None
         base_url = None
+        logger.debug("初始化 Bersona: skyfield=%s swisseph=%s", self.available_skyfield, self.available_swisseph)
         try:
-            import os
             api_key = os.getenv('OPENAI_API_KEY') or os.getenv('OPENAI_KEY')
             base_url = os.getenv('OPENAI_BASE_URL')
-        except Exception:
+        except Exception as e:
+            logger.debug("读取 OpenAI 环境变量失败: %s", e)
             api_key = None
         if api_key:
             try:
@@ -92,27 +108,33 @@ class Bersona:
                     kwargs['base_url'] = base_url
                 self._llm_client = OpenAI(**kwargs)
                 self._llm_model = os.getenv('OPENAI_MODEL')
-            except Exception:
+                logger.info("LLM 客户端初始化成功，模型=%s", self._llm_model)
+            except Exception as e:
+                logger.warning("LLM 初始化失败: %s", e)
                 self._llm_client = None
         self.llm_available = self._llm_client is not None
 
-    def llm_chat(self, messages: List[Dict[str, str]], model: Optional[str] = None,
-                 temperature: float = 0.7, max_tokens: Optional[int] = None) -> Optional[str]:
+    def llm_chat(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> Optional[str]:
         if not self.llm_available:
+            logger.warning("LLM 不可用，跳过 llm_chat 调用")
             return None
         use_model = model or self._llm_model
         if not use_model:
+            logger.error("未指定模型且环境变量 OPENAI_MODEL 未设置")
             raise ValueError('未指定模型名称，且环境变量 OPENAI_MODEL 未设置')
+        logger.debug("调用 LLM: model=%s", use_model)
         try:
             resp = self._llm_client.chat.completions.create(
                 model=use_model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
+                messages=messages
             )
             if resp and resp.choices:
-                return resp.choices[0].message.content
+                content = resp.choices[0].message.content
+                logger.debug("LLM 返回长度=%d", len(content or ""))
+                return content
+            logger.warning("LLM 无 choices 返回")
         except Exception as e:
+            logger.error("LLM 调用异常: %s", e)
             return None
         return None
 
@@ -121,6 +143,19 @@ class Bersona:
                            model: Optional[str] = None,
                            language: str = 'zh',
                            system_prompt: Optional[str] = None) -> AstrologyDesc:
+        """调用 LLM 生成占星描述，并兼容多种包裹格式提取描述正文。
+
+        支持以下几种可能的输出形式：
+        1. 代码块语言标记形式：
+           ```ASTROLOGY_DESC_START
+           <正文>
+           ```ASTROLOGY_DESC_END
+        2. 单行紧贴三反引号：
+           ```ASTROLOGY_DESC_START```<正文>```ASTROLOGY_DESC_END```
+        3. 无反引号，仅纯文本标记：
+           ASTROLOGY_DESC_START ... ASTROLOGY_DESC_END
+        若均未匹配到，则退回完整响应文本。
+        """
         if not self.llm_available:
             raise RuntimeError('LLM 不可用：请设置 OPENAI_API_KEY 并确保网络可访问。')
         base_prompt = system_prompt or BASE_PROMPTS.get(language.split('-')[0], BASE_PROMPTS['en'])
@@ -132,11 +167,49 @@ class Bersona:
         response = self.llm_chat(messages, model=model)
         if not response:
             raise RuntimeError('LLM 调用失败或返回空响应。')
+
+        raw = response.strip()
+        desc_extracted: str = raw
+
+        # 尝试模式 1 / 2：宽松匹配带反引号的开始与结束
+        patterns = [
+            # 代码块语言标记，开始与结束均为独立代码块语言
+            re.compile(r"```ASTROLOGY_DESC_START\s*\n(.*?)\n```ASTROLOGY_DESC_END", re.DOTALL),
+            # 紧贴三反引号的单行写法
+            re.compile(r"```ASTROLOGY_DESC_START```(.*?)```ASTROLOGY_DESC_END```", re.DOTALL),
+            # 开始为语言标记，结束为普通反引号 (部分模型可能只给结束的 ``` )
+            re.compile(r"```ASTROLOGY_DESC_START\s*\n(.*?)\n```", re.DOTALL),
+            # 无反引号纯文本标记
+            re.compile(r"ASTROLOGY_DESC_START(.*?)ASTROLOGY_DESC_END", re.DOTALL),
+        ]
+        for idx, pat in enumerate(patterns, start=1):
+            m = pat.search(raw)
+            if m:
+                desc_extracted = m.group(1).strip()
+                logger.debug("占星描述匹配成功: pattern=%d 长度=%d", idx, len(desc_extracted))
+                break
+        else:
+            logger.warning("未匹配到任何 ASTROLOGY_DESC 标记模式，使用完整响应正文")
+
+        # 去除可能残留的首尾反引号块
+        if desc_extracted.startswith("```") and desc_extracted.endswith("```"):
+            desc_extracted = desc_extracted[3:-3].strip()
+
+        # 构建一个轻量快照（避免巨大 JSON）
+        try:
+            chart_snapshot = {
+                'ascendant': chart.ascendant.sign if chart.ascendant else None,
+                'planets': {k: v.sign for k, v in chart.planets.items()},
+                'aspects_count': len(chart.aspects),
+            }
+        except Exception:
+            chart_snapshot = {}
+
         return AstrologyDesc(
-            text=response,
+            text=desc_extracted,
             model_used=model or self._llm_model,
             language=language,
-            chart_snapshot={},
+            chart_snapshot=chart_snapshot,
         )
 
     def generate_chart(self,
@@ -146,6 +219,8 @@ class Bersona:
                        house_system: str = 'placidus',
                        aspect_orbs: Optional[Dict[str, float]] = None,
                        rulers_scheme: str = 'traditional') -> ChartResult:
+        logger.info("开始生成星盘: raw_input=%s lat=%.4f lon=%.4f house_system=%s rulers_scheme=%s",
+                    birth_dt_input, latitude, longitude, house_system, rulers_scheme)
         raw_input = birth_dt_input
         date_only_flag = False
         if isinstance(raw_input, str):
@@ -168,6 +243,7 @@ class Bersona:
                         raw_input = raw_input.strip() + ' 12:00:00'
                     break
         birth_dt = parse_birth_datetime(raw_input)
+        logger.debug("解析时间结果: %s (tz=%s)", birth_dt, birth_dt.tzinfo)
         if birth_dt.tzinfo is None:
             raise ValueError("birth_dt 必须为带时区的 datetime")
         if house_system not in ('equal', 'placidus'):
@@ -207,6 +283,7 @@ class Bersona:
 
         ascendant_model = None
         if not date_only_flag:
+            logger.debug("计算宫位: system=%s swisseph=%s", house_system, self.available_swisseph)
             asc_long: float
             if house_system == 'placidus' and self.available_swisseph:
                 dt_utc = birth_dt.astimezone(timezone.utc)
@@ -238,9 +315,11 @@ class Bersona:
                     houses_list.append(HouseCusp(house=i, cusp_longitude=start, cusp_sign=angle_to_sign(start)))
             if 'asc_long' in locals() and asc_long is not None:
                 ascendant_model = Ascendant(longitude=asc_long, sign=angle_to_sign(asc_long))
+                logger.info("上升星座: %s %.2f°", ascendant_model.sign, ascendant_model.longitude)
 
         planet_longitudes: Dict[str, float] = {}
         if not self.available_skyfield:
+            logger.error("Skyfield 不可用，无法计算行星位置")
             raise RuntimeError('Skyfield 不可用，无法计算行星位置。')
         if t is not None:
             earth = _EPHEMERIS['earth']
@@ -269,9 +348,10 @@ class Bersona:
                         sign=angle_to_sign(lon_deg),
                         retrograde=retrograde,
                     )
+                    logger.debug("行星位置: %s lon=%.4f lat=%.4f sign=%s R=%s",
+                                 name, lon_deg, lat_deg, angle_to_sign(lon_deg), retrograde)
                 except Exception as e:
-                    import warnings
-                    warnings.warn(f"Planet {name} calculation failed: {e}")
+                    logger.warning("行星计算失败 %s: %s", name, e)
 
         planet_names = list(planets_dict.keys())
         for i in range(len(planet_names)):
@@ -293,6 +373,9 @@ class Bersona:
                             difference=diff,
                             orb_allowed=orb_allowed,
                         ))
+                        logger.debug("发现相位: %s-%s %s 分离=%.2f 差值=%.2f 允许容许=%.2f",
+                                     p1, p2, aspect_name, separation, diff, orb_allowed)
+        logger.info("相位数量: %d", len(aspects_list))
 
         for i in range(len(planet_names)):
             for j in range(i + 1, len(planet_names)):
@@ -309,7 +392,9 @@ class Bersona:
                         scheme=rulers_scheme,
                         signs=(sign1, sign2)
                     ))
-        return ChartResult(
+                    logger.debug("发现互容: %s <-> %s (%s/%s)", p1, p2, sign1, sign2)
+        logger.info("互容数量: %d", len(mutual_receptions_list))
+        chart_result = ChartResult(
             input=input_model,
             settings=settings_model,
             ascendant=ascendant_model,
@@ -318,6 +403,8 @@ class Bersona:
             aspects=aspects_list,
             mutual_receptions=mutual_receptions_list,
         )
+        logger.info("星盘生成完成")
+        return chart_result
 
 if __name__ == "__main__":
     import zoneinfo
@@ -325,4 +412,5 @@ if __name__ == "__main__":
     dt = datetime(1990, 5, 17, 14, 30, tzinfo=tz)
     b = Bersona()
     chart = b.generate_chart(dt, 31.2304, 121.4737)
+    logger.info("示例星盘 JSON 输出")
     print(chart.model_dump_json(indent=2, ensure_ascii=False))

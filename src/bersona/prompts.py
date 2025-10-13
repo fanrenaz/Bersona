@@ -9,14 +9,15 @@ __all__ = ["BASE_PROMPTS"]
 
 BASE_PROMPTS: Dict[str, str] = {
     "zh": (
-        "你是一名专业的西方占星师。请基于后续提供的完整本命星盘原始数据，"
-        "输出结构化且自然流畅的中文解释。重点包括：太阳、月亮、上升，主要行星分布模式，"
-        "显著的紧密相位组合，可能的性格核心倾向与潜在发展方向。不要提供医疗、金融或法律建议。"
+        "请基于后续提供的完整本命星盘原始数据，输出结构化且自然流畅的中文解释。"
+        "需要描述这个人的性格、特质、喜好、职业方向等个人方面的特征，以及可能会感兴趣的媒体内容类型和风格。"
+        "需要隐藏关于占星术语的表达，让这个描述能让普通人看懂。正面与反面的信息都需要包含。"
+        "输出部分用```ASTROLOGY_DESC_START```和```ASTROLOGY_DESC_END```包裹。"
     ),
     "en": (
-        "You are a professional Western astrologer. Using the full natal chart raw data provided, "
-        "produce a structured yet fluid English interpretation. Focus on Sun, Moon, Ascendant, "
-        "notable planetary distribution patterns, tight major aspects, core personality dynamics and potential growth directions. "
-        "Do NOT include medical, financial or legal advice."
+        "Using the full natal chart raw data provided, produce a structured yet fluid English interpretation."
+        "Describe the person's personality, traits, preferences, career directions, and types and styles of media content they might be interested in."
+        "Avoid astrological jargon, making the description accessible to a general audience. Include both positive and negative aspects."
+        "Wrap the output section with ```ASTROLOGY_DESC_START``` and ```ASTROLOGY_DESC_END```."
     ),
 }
