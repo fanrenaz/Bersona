@@ -89,46 +89,77 @@ class Bersona:
     # 新增: 默认语言类属性（可按需扩展）
     DEFAULT_LANGUAGE = 'zh'
 
-    def __init__(self) -> None:
+    def __init__(self,
+                 llm_client: Any = None,
+                 llm_model: Optional[str] = None,
+                 system_prompt: Optional[str] = None) -> None:
+        """
+        可选参数:
+        llm_client: 传入已构造好的 OpenAI 客户端(或兼容接口对象)，则不再内部自动创建
+        llm_model: 指定使用的模型；若为空且使用环境变量模式，则读取 OPENAI_MODEL
+        system_prompt: 覆盖默认的 system prompt
+        """
         self.available_skyfield = _SKYFIELD_AVAILABLE
         self.available_swisseph = _SWISSEPH_AVAILABLE
         self._llm_client = None
         self._llm_model = None
-        api_key = None
-        base_url = None
-        # 新增: 实例级 system_prompt，可直接外部赋值覆盖
-        # 默认按照 DEFAULT_LANGUAGE 或环境变量 BERSONA_DEFAULT_LANG 选择
+
         default_lang = os.getenv("BERSONA_DEFAULT_LANG", self.DEFAULT_LANGUAGE)
-        self.system_prompt: Optional[str] = BASE_PROMPTS.get(default_lang, BASE_PROMPTS[self.DEFAULT_LANGUAGE])
+        # 若显式传入 system_prompt 则使用；否则按语言默认
+        self.system_prompt: Optional[str] = system_prompt or BASE_PROMPTS.get(default_lang, BASE_PROMPTS[self.DEFAULT_LANGUAGE])
 
         logger.debug("初始化 Bersona: skyfield=%s swisseph=%s", self.available_skyfield, self.available_swisseph)
-        try:
-            api_key = os.getenv('OPENAI_API_KEY') or os.getenv('OPENAI_KEY')
-            base_url = os.getenv('OPENAI_BASE_URL')
-        except Exception as e:
-            logger.debug("读取 OpenAI 环境变量失败: %s", e)
+
+        if llm_client is not None:
+            # 外部注入模式
+            self._llm_client = llm_client
+            self._llm_model = llm_model or os.getenv('OPENAI_MODEL')
+            self.llm_available = True
+            logger.info("使用外部注入的 LLM 客户端，模型=%s", self._llm_model)
+        else:
+            # 保留原环境变量自动创建逻辑
             api_key = None
-        if api_key:
+            base_url = None
             try:
-                from openai import OpenAI
-                kwargs = {'api_key': api_key}
-                if base_url:
-                    kwargs['base_url'] = base_url
-                self._llm_client = OpenAI(**kwargs)
-                self._llm_model = os.getenv('OPENAI_MODEL')
-                logger.info("LLM 客户端初始化成功，模型=%s", self._llm_model)
+                api_key = os.getenv('OPENAI_API_KEY') or os.getenv('OPENAI_KEY')
+                base_url = os.getenv('OPENAI_BASE_URL')
             except Exception as e:
-                logger.warning("LLM 初始化失败: %s", e)
-                self._llm_client = None
-        self.llm_available = self._llm_client is not None
+                logger.debug("读取 OpenAI 环境变量失败: %s", e)
+                api_key = None
+            if api_key:
+                try:
+                    from openai import OpenAI
+                    kwargs = {'api_key': api_key}
+                    if base_url:
+                        kwargs['base_url'] = base_url
+                    self._llm_client = OpenAI(**kwargs)
+                    self._llm_model = os.getenv('OPENAI_MODEL')
+                    logger.info("LLM 客户端初始化成功，模型=%s", self._llm_model)
+                except Exception as e:
+                    logger.warning("LLM 初始化失败: %s", e)
+                    self._llm_client = None
+            self.llm_available = self._llm_client is not None
 
     # 新增: 设置 / 覆盖实例级 system prompt 的便捷方法
     def set_system_prompt(self, prompt: str) -> None:
         """
-        设置实例级的 system prompt。之后 astrology_describe 若未显式传入 system_prompt 参数，
-        将使用此实例级 prompt。传入空字符串将视为清除，自行回退到 BASE_PROMPTS 逻辑。
+        设置实例级的 system prompt。传入空字符串将视为清除，自行回退到 BASE_PROMPTS 逻辑。
         """
         self.system_prompt = prompt or None
+
+    def set_llm_client(self, client: Any, model: Optional[str] = None) -> None:
+        """
+        动态注入 / 替换 LLM 客户端。
+        client: 需提供 chat.completions.create 接口的对象
+        model: 若指定则更新模型；否则保留原值或再从环境变量读取
+        """
+        self._llm_client = client
+        if model:
+            self._llm_model = model
+        elif not self._llm_model:
+            self._llm_model = os.getenv('OPENAI_MODEL')
+        self.llm_available = self._llm_client is not None
+        logger.info("已更新 LLM 客户端，当前模型=%s", self._llm_model)
 
     def llm_chat(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> Optional[str]:
         if not self.llm_available:

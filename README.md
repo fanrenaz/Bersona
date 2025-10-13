@@ -65,11 +65,25 @@ chart = astro.generate_chart(dt)
 print(chart.summary())
 ```
 
-LLM 解释：
+LLM 解释（自动根据环境变量创建客户端）：
 ```python
 if astro.llm_available:
     desc = astro.astrology_describe(chart)
     print(desc.text)
+```
+
+直接注入已有 OpenAI 客户端：
+```python
+from openai import OpenAI
+client = OpenAI(api_key="YOUR_KEY")
+astro = Bersona(llm_client=client, llm_model="gpt-4o-mini")
+desc = astro.astrology_describe(chart)
+print(desc.text)
+```
+
+运行后再替换 / 注入：
+```python
+astro.set_llm_client(client, model="gpt-4o")
 ```
 
 ## 5. 数据模型 (Data Models)
@@ -115,7 +129,9 @@ source .env
 |------|------|---------|
 | `Bersona.generate_chart` | 生成星盘 | `birth_dt_input`, `latitude`, `longitude`, `house_system` |
 | `Bersona.astrology_describe` | LLM 解释 | `chart`, `language`, `system_prompt`, `model` |
-| `Bersona.llm_chat` | 低层对话 | `messages`, `model`, `temperature` |
+| `Bersona.llm_chat` | 低层对话 | `messages`, `model` |
+| `Bersona.set_system_prompt` | 设置实例级 system prompt | `prompt` |
+| `Bersona.set_llm_client` | 动态注入/替换 LLM 客户端 | `client`, `model` |
 | `utils.chart_to_text` | 星盘序列化文本 | `ChartResult` |
 | `utils.parse_birth_datetime` | 输入时间解析 | 多格式字符串/时间戳 |
 
@@ -238,6 +254,26 @@ desc = b.astrology_describe(chart, language="en")
 - 长期风格：用 `set_system_prompt`.
 - 一次性定制：在 `astrology_describe` 里传 `system_prompt`.
 - 设空字符串即可回退默认。
+
+## 17. LLM 客户端注入 (Inject Existing LLM Client)
+
+你可以在初始化时传入已创建的兼容 OpenAI 接口客户端（需提供 `chat.completions.create` 方法）：
+```python
+from openai import OpenAI
+client = OpenAI(api_key="YOUR_KEY", base_url="https://api.openai.com/v1")
+b = Bersona(llm_client=client, llm_model="gpt-4o-mini")
+desc = b.astrology_describe(chart)
+```
+
+或在实例创建后动态替换：
+```python
+b.set_llm_client(client, model="gpt-4o")
+```
+
+要点：
+- 未传入 `llm_client` 时，会按环境变量自动创建（需 `OPENAI_API_KEY`）。
+- `llm_model` 未指定时，回退读取 `OPENAI_MODEL`。
+- 调用前可检查：`b.llm_available`。
 
 ---
 欢迎反馈与建议，共同改进 Bersona。
